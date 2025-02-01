@@ -96,6 +96,14 @@ const ConversionPage = () => {
   const { allLocations } = useLocations();
   const [timeCalcs, setTimeCalcs] = useState<Record<string, TimezoneCalc>>({});
 
+  // Add current location state
+  const [currentLocation, setCurrentLocation] = useState<{
+    city: string;
+    region: string;
+    time: string;
+    date: string;
+  } | null>(null);
+
   // Add console logs for debugging
   useEffect(() => {
     console.log('Current tileData:', tileData);
@@ -132,76 +140,36 @@ const ConversionPage = () => {
     }
   };
 
-  // Initial location detection
+  // Modify initial location detection to only set current location
   useEffect(() => {
     const detectLocation = async () => {
       try {
-        console.log('Detecting location...');
         const response = await fetch('https://falling-glade-41d6.pallathu368.workers.dev/');
         if (!response.ok) throw new Error('Failed to detect location');
         const geoData = await response.json();
-        console.log('Location data:', geoData);
 
         const cityResponse = await fetch(
           `http://localhost:8000/location/${encodeURIComponent(geoData.location.city)}`
         );
         if (!cityResponse.ok) throw new Error('Failed to fetch city data');
         const cityData = await cityResponse.json();
-        console.log('Raw city data:', cityData);
-        console.log('Raw UTC offset:', cityData.utc_offset);
 
-        // Format UTC offset to include minutes
-        const formattedOffset = cityData.utc_offset.toString()
-          .replace(/^(\d)/, '+$1')  // Add + if missing
-          .replace(/(\d{2})$/, ':$1')  // Add colon before minutes
-          .replace(/(\d{1,2})$/, '00');  // Add minutes if missing
-
-        console.log('Formatted UTC offset before tzcalc:', formattedOffset);
-
-        // Create timezone calculator
-        const dstData = cityData.dst_status === 'YES' ? {
-          dst_start: cityData.dst_data.dst_start,
-          dst_start_time: cityData.dst_data.dst_start_time,
-          dst_end: cityData.dst_data.dst_end,
-          dst_end_time: cityData.dst_data.dst_end_time
-        } : undefined;
-        console.log('DST data:', dstData);
-
-        try {
-          console.log('Creating TimezoneCalc with offset:', formattedOffset);
-          const calculator = new TimezoneCalc(formattedOffset, dstData);
-          console.log('TimezoneCalc created successfully');
-          
-          // Set initial states
-          setTileData({ [REFERENCE_TILE_ID]: cityData });
-          setTimeCalcs({ [REFERENCE_TILE_ID]: calculator });
-
-          // Get initial time
-          const localTime = await calculator.getLocalTime();
-          console.log('Local time calculated:', localTime);
-
-          setCityTimes({
-            [REFERENCE_TILE_ID]: {
-              time: localTime.toLocaleTimeString(),
-              date: localTime.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              }),
-              timezone: cityData.timezone,
-              timeDifference: ''
-            }
-          });
-
-        } catch (calcError) {
-          console.error('TimezoneCalc creation error:', calcError);
-          throw calcError;
-        }
+        // Only set current location info
+        setCurrentLocation({
+          city: cityData.city,
+          region: `${cityData.state}, ${cityData.country}`,
+          time: new Date().toLocaleTimeString(),
+          date: new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          })
+        });
 
       } catch (error) {
         console.error('Location detection error:', error);
-        setError('Could not detect your location. Please search for a city.');
+        setError('Could not detect your location');
       }
     };
 
@@ -252,7 +220,7 @@ const ConversionPage = () => {
     initialReferenceTime.current = now;
   };
 
-  // City management functions
+  // Modify handleAddCity to make first added city the reference
   const handleAddCity = async (city: City) => {
     try {
       const response = await fetch(
@@ -260,8 +228,11 @@ const ConversionPage = () => {
       );
       const cityData = await response.json();
 
-      // Find next available tile
-      const nextTileId = COMPARISON_TILE_IDS.find(id => !tileData[id]);
+      // If no reference city exists, use REFERENCE_TILE_ID
+      const nextTileId = !referenceCity ? 
+        REFERENCE_TILE_ID : 
+        COMPARISON_TILE_IDS.find(id => !tileData[id]);
+
       if (!nextTileId) {
         setError(`Maximum ${MAX_CITIES} cities allowed`);
         return;
@@ -299,6 +270,11 @@ const ConversionPage = () => {
           timeDifference: ''
         }
       }));
+
+      // Set as reference if it's the first city
+      if (!referenceCity) {
+        setReferenceCity(cityData);
+      }
     } catch (error) {
       setError('Failed to add city. Please try again.');
     }
@@ -380,6 +356,22 @@ const ConversionPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Current Location Display */}
+        {currentLocation && (
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-[#1a365d] mb-2">
+              Current Time: {currentLocation.time}
+            </h1>
+            <h2 className="text-2xl text-[#2d4a7c] mb-1">
+              {currentLocation.city}, {currentLocation.region}
+            </h2>
+            <p className="text-xl text-gray-600">
+              {currentLocation.date}
+            </p>
+          </div>
+        )}
+
+        {/* Add City Button */}
         <div className="bg-white rounded-lg shadow-lg p-8">
           {error && (
             <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg">
@@ -429,6 +421,7 @@ const ConversionPage = () => {
             </div>
           )}
 
+          {/* Comparison Tiles */}
           <div className="space-y-6">
             {referenceCity && (
               <div className="p-6 bg-blue-50 rounded-lg">
