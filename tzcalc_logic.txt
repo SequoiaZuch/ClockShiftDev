@@ -1,0 +1,140 @@
+Here is a code that we can rerefence from ConversionPage.tsx for calculating time and date for
+all the tiles on the page.
+
+Time Data Collection
+
+Fetches current UTC time from API endpoint
+Accepts timezone offset in "+HH:MM" format
+Takes optional DST transition dates and times
+
+
+Core Processing Flow:
+
+CopyInput -> Parse UTC Offset -> Fetch/Use UTC Time -> Apply DST Rules -> Format Output
+
+Main Processing Steps:
+a. Parse UTC Offset:
+Copy"+11:00" -> Extract sign (+) and time (11:00) -> Convert to minutes (11 * 60 + 00 = 660)
+b. DST Calculation:
+Copyif (date is provided):
+    use provided date
+else:
+    fetch UTC time from API
+
+if (DST data exists):
+    calculate DST start/end dates
+    if (Southern Hemisphere): check if date >= start OR < end
+    if (Northern Hemisphere): check if start <= date < end
+c. Local Time Calculation:
+Copylocal_time = UTC_time + offset_minutes
+if (isDST):
+    local_time += 60 minutes
+
+
+Expected Data Inputs from TSX file:
+
+Required Constructor Parameters:
+
+typescriptCopyinterface TimezoneConfig {
+    utcOffset: string;     // Format: "+11:00" or "-11:00"
+}
+
+Optional DST Configuration:
+
+typescriptCopyinterface DSTData {
+    dst_start: string;       // Format: "MM-DD" (e.g., "03-13")
+    dst_start_time: string;  // Format: "HH:mm" (e.g., "02:00")
+    dst_end: string;         // Format: "MM-DD" (e.g., "11-06")
+    dst_end_time: string;    // Format: "HH:mm" (e.g., "02:00")
+}
+
+Usage Example in TSX:
+
+typescriptCopy// Basic initialization without DST
+const basicTimezone = new TimezoneCalc("+05:30"); // e.g., India
+
+// Full initialization with DST
+const sydneyTimezone = new TimezoneCalc("+11:00", {
+    dst_start: "10-01",      // October 1st
+    dst_start_time: "02:00", // 2 AM
+    dst_end: "04-02",        // April 2nd
+    dst_end_time: "03:00"    // 3 AM
+});
+
+// Using the timezone calculator
+async function TimeDisplay() {
+    // Get current time
+    const currentTime = await sydneyTimezone.getLocalTime();
+    const formattedTime = await sydneyTimezone.formatLocalTime();
+
+    // Or with specific date
+    const specificDate = new Date('2025-06-15T12:00:00Z');
+    const specificTime = await sydneyTimezone.getLocalTime(specificDate);
+}
+Available Methods:
+
+getLocalTime(date?: Date): Promise<Date>
+
+Input: Optional Date object
+Output: Promise resolving to local time Date object
+
+
+formatLocalTime(date?: Date): Promise<string>
+
+Input: Optional Date object
+Output: Promise resolving to formatted string (ISO 8601 with offset)
+
+
+isDST(date?: Date): Promise<boolean>
+
+Input: Optional Date object
+Output: Promise resolving to DST status
+
+
+
+Error Handling:
+
+Invalid UTC offset format throws error
+API fetch failures fallback to system time
+Invalid DST data format throws error
+
+Important Notes for Implementation:
+
+All methods are asynchronous due to API dependency
+Methods can work with both provided dates and current time
+DST calculations handle both hemispheres
+Timezone offset must be in strict "+HH:MM" or "-HH:MM" format
+Requires network access for UTC time API endpoint
+
+This calculator is particularly useful for:
+
+International applications needing accurate local time
+Systems dealing with DST transitions
+Applications requiring formatted timezone strings
+Cross-hemisphere timezone handling
+
+
+
+
+
+
+// Usage example:
+async function example() {
+    const sydneyTimezone = new TimezoneCalc("+11:00", {  // Sydney, Australia
+        dst_start: "10-01",      // October 1st
+        dst_start_time: "02:00", // 2 AM
+        dst_end: "04-02",        // April 2nd
+        dst_end_time: "03:00"    // 3 AM
+    });
+
+    // Get current local time based on API UTC time
+    const localTime = await sydneyTimezone.getLocalTime();
+    const formatted = await sydneyTimezone.formatLocalTime();
+    console.log('Current local time:', formatted);
+
+    // Or use with a specific date
+    const specificDate = new Date('2025-06-15T12:00:00Z');
+    const specificLocal = await sydneyTimezone.getLocalTime(specificDate);
+    const specificFormatted = await sydneyTimezone.formatLocalTime(specificDate);
+    console.log('Specific date local time:', specificFormatted);
+}

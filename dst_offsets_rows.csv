@@ -1,0 +1,2 @@
+id,created_at,city,dst_start,dst_start_time,forward_by,dst_end,dst_end_time,backward_by
+48,2025-01-22 12:25:21.665649+00,Melbourne,3/10/2025,2:00,+01:00,5/4/2026,3:00,-01:00

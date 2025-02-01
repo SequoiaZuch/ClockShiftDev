@@ -1,0 +1,28 @@
+# Core Dependencies (optimized for low memory)
+fastapi==0.109.0
+uvicorn[standard]==0.27.0  # Standard includes uvloop for better performance
+redis==5.0.1
+python-dotenv==1.0.0
+aioredis==2.0.1
+httpx[http2]==0.26.0  # HTTP/2 is more memory efficient
+pytz==2023.3
+
+# Add memory optimization packages
+uvloop==0.18.0  # Faster asyncio implementation
+cryptography==41.0.7  # Prevents building from source
+
+# Database
+supabase==2.3.0
+asyncpg==0.29.0
+
+# Utils
+pydantic==2.5.3
+python-multipart==0.0.6
+typing-extensions==4.9.0
+
+# Logging & Monitoring
+loguru==0.7.2
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.4
